@@ -37,7 +37,7 @@ Made for Twitch streamers on Windows. It runs 100% locally on your PC: no accoun
 
 ### 1. Download
 
-Download the latest **NowPlaying.zip** from [Releases](../../releases) and unzip it somewhere permanent (for example `Documents\NowPlaying`). You can also [build it yourself](#build-from-source).
+Download the latest **NowPlaying.zip** from [Releases](../../releases) and unzip it somewhere permanent (for example `Documents\NowPlaying`).
 
 ### 2. Start the app
 
@@ -149,20 +149,6 @@ Everything listens on `127.0.0.1` only, so nothing is reachable from other compu
 - **"Redirect URIs must use HTTPS protocol" on Twitch:** use `https://localhost` and remove any extra empty redirect row.
 - **Starting NowPlaying.exe twice** just opens the existing window.
 - **Port 8787 is taken:** run `NowPlaying.exe -port 9000`, then change the port in `extension*/background.js` and in the OBS URL.
-
-## Build from source
-
-Requirements: [Go 1.22+](https://go.dev/dl/).
-
-```powershell
-cd app
-.\build.ps1          # Windows
-# or: ./build.sh     # cross-compile from Linux / macOS
-```
-
-Run the tests with `go test ./...` inside `app/`.
-
-Command-line flags: `-port 8787`, `-tray` (start hidden in the tray), `-with-obs` (quit when OBS closes; the OBS script uses this).
 
 ## Project structure
 
