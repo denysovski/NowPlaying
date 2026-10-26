@@ -33,90 +33,189 @@ Made for Twitch streamers on Windows. It runs 100% locally on your PC: no accoun
  OBS Browser Source      Twitch chat (!song) via your own Twitch app login
 ```
 
-## Setup (step by step)
+## Setup
 
-### 1. Download
+Follow the steps in order. Steps 1 to 4 are required; 5 and 6 are optional but recommended.
 
-Download the latest **NowPlaying.zip** from [Releases](https://github.com/denysovski/NowPlaying/releases/latest) and unzip it somewhere permanent (for example `Documents\NowPlaying`).
+| Step | What you do | Time |
+| :---: | --- | :---: |
+| **1** | [Download NowPlaying](#step-1--download) | 1 min |
+| **2** | [Start the app](#step-2--start-the-app) | 1 min |
+| **3** | [Install the browser extension](#step-3--install-the-browser-extension) (Chrome or Firefox) | 1–10 min |
+| **4** | [Add the overlay to OBS](#step-4--add-the-overlay-to-obs) | 1 min |
+| **5** | [Run NowPlaying only while OBS is open](#step-5--run-nowplaying-only-while-obs-is-open) *(recommended)* | 1 min |
+| **6** | [Twitch `!song` command](#step-6--twitch-song-command) *(optional)* | 3 min |
 
-### 2. Start the app
+<br>
 
-Double-click **NowPlaying.exe**.
+---
 
-- If Windows SmartScreen says *"Windows protected your PC"*, click **More info**, then **Run anyway** (the app isn't code-signed).
-- The dashboard opens. Closing it with **X** keeps NowPlaying running in the tray next to the clock. Click the tray icon to open it again, or right-click it and choose **Quit** to stop it.
-- The window uses Microsoft Edge WebView2, which is built into Windows 10/11.
+<br>
 
-### 3. Install the browser extension
+## Step 1 — Download
 
-#### Chrome, Edge, Brave, Opera
+Download the latest **NowPlaying.zip** from [Releases](https://github.com/denysovski/NowPlaying/releases/latest) and unzip it somewhere permanent, for example `Documents\NowPlaying`.
+
+> [!TIP]
+> Keep the folder where it is after setup. The browser extension, the OBS script and your picture are loaded from it.
+
+<br>
+
+---
+
+<br>
+
+## Step 2 — Start the app
+
+Double-click **NowPlaying.exe**. The dashboard opens.
+
+> [!NOTE]
+> If Windows SmartScreen says *"Windows protected your PC"*, click **More info**, then **Run anyway**. The app isn't code-signed.
+
+**Good to know:**
+
+- Closing the window with **X** keeps NowPlaying running in the tray next to the clock.
+- Click the tray icon to open the dashboard again. Right-click it and choose **Quit** to stop NowPlaying.
+- The window uses Microsoft Edge WebView2, which is built into Windows 10 and 11.
+
+<br>
+
+---
+
+<br>
+
+## Step 3 — Install the browser extension
+
+Pick your browser below. You only need one of them.
+
+<br>
+
+### 🟢 Chrome, Edge, Brave or Opera
 
 1. Open `chrome://extensions` (Edge: `edge://extensions`, Opera: `opera://extensions`).
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the **`extension`** folder.
 4. Reload any YouTube / SoundCloud tabs that were already open.
 
-#### Firefox
+✅ Done, go to [Step 4](#step-4--add-the-overlay-to-obs).
 
-Firefox only keeps extensions that Mozilla has signed. Signing is free, automatic and takes a few minutes. You only do this once (and again only if you update the extension).
+<br>
+
+### 🦊 Firefox
+
+Firefox only keeps extensions that Mozilla has signed. Signing is free and automatic, and you only do it once.
+
+**A. Prepare the file**
 
 1. **Give the extension your own ID.** Open `extension-firefox/manifest.json` and change
    `"id": "nowplaying@change-me-to-your-name"` to something unique, e.g. `"nowplaying@yourname"`.
-   The easiest unique ID is a GUID in braces: in PowerShell run `[guid]::NewGuid()` and use `"{that-guid}"`.
-   (If you skip this, Mozilla answers *"Duplicate add-on ID found"*.)
-2. **Make the .xpi file.** Open the `extension-firefox` folder, select **all files inside it** (`manifest.json`, `background.js`, `content.js`, `icons`), right-click, choose **Send to**, then **Compressed (zipped) folder**, and rename the zip to `NowPlaying-firefox.xpi`.
-   Zip the *contents*, not the folder itself.
+2. **Make the .xpi file.** Open the `extension-firefox` folder and select **all files inside it** (`manifest.json`, `background.js`, `content.js`, `icons`). Right-click, choose **Send to**, then **Compressed (zipped) folder**, and rename the zip to `NowPlaying-firefox.xpi`.
+
+> [!IMPORTANT]
+> Zip the files *inside* the folder, not the folder itself. If you skip the ID change, Mozilla answers *"Duplicate add-on ID found"*.
+
+**B. Let Mozilla sign it**
+
 3. Go to [addons.mozilla.org/developers](https://addons.mozilla.org/developers/) and log in (any Firefox account).
 4. Click **Submit a New Add-on** and choose **On your own**. That keeps it private and unlisted.
 5. Upload `NowPlaying-firefox.xpi`. If it asks whether you used a minifier or code generator, answer **No**, then submit.
-6. Wait until the status says **Approved** (usually a few minutes; you also get an email).
+6. Wait until the status says **Approved**. It usually takes a few minutes, and you also get an email.
+
+**C. Install it**
+
 7. Open **My Add-ons → NowPlaying for OBS → Manage Status & Versions**, click the version, then click the `.xpi` file. Firefox asks to install it: click **Add**.
 8. Open `about:addons`, click **NowPlaying for OBS**, go to **Permissions**, and turn **all** permissions on.
 9. Reload your YouTube / SoundCloud tabs.
 
-### 4. Add the overlay to OBS
+✅ Done, go to [Step 4](#step-4--add-the-overlay-to-obs).
 
-1. **Sources → + → Browser**.
-2. Leave **Local file** unticked and set **URL** to `http://127.0.0.1:8787/overlay`.
-3. **Width 520**, **Height 130**. Clear the **Custom CSS** box.
-4. Click **OK**, play a song, and position the card in your scene.
+<br>
 
-The card is invisible whenever nothing is playing or the app isn't running.
+---
 
-### 5. Run NowPlaying only while OBS is open (recommended)
+<br>
 
-1. Keep `obs/NowPlaying-OBS.lua` in the **same folder as NowPlaying.exe**.
+## Step 4 — Add the overlay to OBS
+
+1. In OBS, click **Sources → + → Browser** and give it a name, e.g. *Now Playing*.
+2. Leave **Local file** unticked.
+3. Set **URL** to:
+   ```
+   http://127.0.0.1:8787/overlay
+   ```
+4. Set **Width 520** and **Height 130**, and clear the **Custom CSS** box.
+5. Click **OK**, play a song, and move the card where you want it in your scene.
+
+> [!NOTE]
+> The card is invisible whenever nothing is playing or the app isn't running, so you can leave the source in your scene all the time.
+
+<br>
+
+---
+
+<br>
+
+## Step 5 — Run NowPlaying only while OBS is open
+
+*Recommended.* NowPlaying starts quietly in the tray when OBS starts and closes a few seconds after OBS closes.
+
+1. Keep `NowPlaying-OBS.lua` in the **same folder as NowPlaying.exe** (in the repository it's in `obs/`).
 2. In OBS go to **Tools → Scripts**, click **+** and choose `NowPlaying-OBS.lua`.
 
-NowPlaying now starts quietly in the tray when OBS starts and closes a few seconds after OBS closes. While it isn't running, the extension sends nothing anywhere, so what you watch off-stream stays private.
+> [!TIP]
+> While NowPlaying isn't running, the extension sends nothing anywhere, so what you watch off-stream stays private.
 
-### 6. Twitch `!song` (optional)
+<br>
 
-NowPlaying answers `!song` in your chat itself. Nightbot and StreamElements run on their own servers and can't see your PC, so they aren't used.
+---
 
-1. In the dashboard, open **Twitch !song** at the bottom.
-2. Go to [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps), log in and click **Register Your Application**:
-   - **Name:** anything, e.g. `NowPlaying-yourname`
-   - **OAuth Redirect URLs:** `https://localhost` (required by Twitch but not used; make sure there's no extra empty row)
-   - **Category:** Chat Bot
-   - **Client Type:** **Public**
+<br>
+
+## Step 6 — Twitch `!song` command
+
+*Optional.* NowPlaying answers `!song` in your chat itself. Nightbot and StreamElements run on their own servers and can't see your PC, so you don't need them for this.
+
+**A. Create a free Twitch app (one time)**
+
+1. Go to [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps), log in and click **Register Your Application**.
+2. Fill it in:
+
+   | Field | Value |
+   | --- | --- |
+   | Name | anything, e.g. `NowPlaying-yourname` |
+   | OAuth Redirect URLs | `https://localhost` (required by Twitch but not used; remove any extra empty row) |
+   | Category | Chat Bot |
+   | Client Type | **Public** |
+
 3. Click **Create**, then **Manage**, and copy the **Client ID**. You don't need a Client Secret.
-4. Paste the Client ID into NowPlaying and click **Connect Twitch**.
+
+**B. Connect NowPlaying**
+
+4. In the dashboard, open **Twitch !song** at the bottom, paste the Client ID and click **Connect Twitch**.
 5. `twitch.tv/activate` opens with a code. Check it matches the one in the app, log in with the account that should answer (your own or a bot account) and click **Authorize**.
 6. The app shows **Listening in #yourchannel**. Type `!song` in your chat.
 
-Example replies:
+**Example replies**
 
 ```
 🎵 Daft Punk - Something About Us → https://youtu.be/…
 🎵 Fred again.. - Delilah
 ```
 
-You can change the command, the reply text, the "nothing is playing" text and the channel in the app.
-Reply variables: `{song}` `{title}` `{artist}` `{url}` `{source}` `{user}`. Replies are limited to one every 5 seconds.
-If you had a `!song` command in Nightbot / StreamElements, delete it so chat doesn't get two answers.
+- You can change the command, the reply text, the "nothing is playing" text and the channel in the app.
+- Reply variables: `{song}` `{title}` `{artist}` `{url}` `{source}` `{user}`.
+- Replies are limited to one every 5 seconds.
+
+> [!IMPORTANT]
+> If you already have a `!song` command in Nightbot or StreamElements, delete it so chat doesn't get two answers.
 
 The login renews itself. It's stored only on your PC in `%APPDATA%\NowPlaying\config.json`.
+
+<br>
+
+---
+
+<br>
 
 ## Dashboard settings
 
