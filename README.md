@@ -116,7 +116,7 @@ You can change the command, the reply text, the "nothing is playing" text and th
 Reply variables: `{song}` `{title}` `{artist}` `{url}` `{source}` `{user}`. Replies are limited to one every 5 seconds.
 If you had a `!song` command in Nightbot / StreamElements, delete it so chat doesn't get two answers.
 
-The login renews itself. It's stored only on your PC in `%APPDATA%\NowPlaying\config.json` and is never in this repository.
+The login renews itself. It's stored only on your PC in `%APPDATA%\NowPlaying\config.json`.
 
 ## Dashboard settings
 
