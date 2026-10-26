@@ -37,7 +37,7 @@ Made for Twitch streamers on Windows. It runs 100% locally on your PC: no accoun
 
 ### 1. Download
 
-Download the latest **NowPlaying.zip** from [Releases](../../releases) and unzip it somewhere permanent (for example `Documents\NowPlaying`).
+Download the latest **NowPlaying.zip** from [Releases](https://github.com/denysovski/NowPlaying/releases/latest) and unzip it somewhere permanent (for example `Documents\NowPlaying`).
 
 ### 2. Start the app
 
@@ -73,8 +73,6 @@ Firefox only keeps extensions that Mozilla has signed. Signing is free, automati
 7. Open **My Add-ons → NowPlaying for OBS → Manage Status & Versions**, click the version, then click the `.xpi` file. Firefox asks to install it: click **Add**.
 8. Open `about:addons`, click **NowPlaying for OBS**, go to **Permissions**, and turn **all** permissions on.
 9. Reload your YouTube / SoundCloud tabs.
-
-> Just want to try it first? Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `extension-firefox/manifest.json`. It works right away but disappears when Firefox closes.
 
 ### 4. Add the overlay to OBS
 
@@ -141,14 +139,6 @@ The current song is also written to `nowplaying.txt` next to the exe, for an OBS
 | `GET /events` | Server-Sent Events stream used by the overlay |
 
 Everything listens on `127.0.0.1` only, so nothing is reachable from other computers.
-
-## Troubleshooting
-
-- **The card doesn't show in OBS:** check that the dashboard shows the song. If it doesn't, reload the YouTube / SoundCloud tab and check the extension is enabled (in Firefox, that all permissions are on). Make sure the OBS source uses the URL, not *Local file*.
-- **"Duplicate add-on ID found" on Mozilla:** change the `id` in `extension-firefox/manifest.json` (step 3, Firefox, point 1).
-- **"Redirect URIs must use HTTPS protocol" on Twitch:** use `https://localhost` and remove any extra empty redirect row.
-- **Starting NowPlaying.exe twice** just opens the existing window.
-- **Port 8787 is taken:** run `NowPlaying.exe -port 9000`, then change the port in `extension*/background.js` and in the OBS URL.
 
 ## Project structure
 
