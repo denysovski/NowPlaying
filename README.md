@@ -8,10 +8,6 @@ Made for Twitch streamers on Windows. It runs 100% locally on your PC: no accoun
   <img src="docs/images/overlay.png" alt="OBS overlay: short and long (scrolling) song titles" width="720">
 </p>
 
-<p align="center">
-  <img src="docs/images/dashboard.png" alt="NowPlaying dashboard" width="360">
-</p>
-
 ## Features
 
 - **Instant updates.** Change the song and the card in OBS updates right away, with a smooth crossfade.
