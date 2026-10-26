@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Now Playing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --card-w: 440px;
+    --radius: 10px;
+    --speed: 45; /* marquee speed in px per second */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; overflow: hidden; }
+  body {
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .card {
+    position: relative;
+    width: var(--card-w);
+    height: 88px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 18px 12px 12px;
+    border-radius: var(--radius);
+    color: #fff;
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(255,255,255,.035) 0%, rgba(255,255,255,0) 55%),
+      linear-gradient(135deg, #0e0e0e 0%, #060606 45%, #000 100%);
+    border: 1px solid rgba(255,255,255,.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.06),
+      0 10px 30px rgba(0,0,0,.45);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateX(-24px) scale(.98);
+    transition: opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1);
+  }
+  .card.show { opacity: 1; transform: none; }
+
+
+  .cover {
+    flex: none;
+    width: 64px; height: 64px;
+    border-radius: 7px;
+    background: #111 url("/cover.jpg") center / cover no-repeat;
+    filter: grayscale(1) contrast(1.05);
+    box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+    transition: transform .5s cubic-bezier(.2,.8,.2,1);
+  }
+
+  .info { flex: 1; min-width: 0; position: relative; height: 64px; }
+
+  .meta {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 600; letter-spacing: .16em;
+    text-transform: uppercase; color: rgba(255,255,255,.5);
+    height: 14px;
+  }
+  .bars { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+  .bars i {
+    display: block; width: 2px; height: 100%;
+    background: #fff; border-radius: 1px;
+    transform-origin: bottom;
+    animation: eq 1s ease-in-out infinite;
+  }
+  .bars i:nth-child(2) { animation-delay: -.4s; animation-duration: .8s; }
+  .bars i:nth-child(3) { animation-delay: -.2s; animation-duration: 1.2s; }
+  .bars i:nth-child(4) { animation-delay: -.6s; animation-duration: .9s; }
+  @keyframes eq { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+  .card.paused .bars i { animation-play-state: paused; opacity: .35; }
+  .dot { opacity: .5; }
+
+  /* text block: two layers so the old song slides out while the new one slides in */
+  .text {
+    position: absolute; left: 0; right: 0; top: 18px;
+    transition: opacity .35s ease;
+  }
+  .text.out { opacity: 0; }
+  .text.in  { opacity: 0; }
+
+  .line { overflow: hidden; white-space: nowrap; }
+  .line.scrolling {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  }
+  .track { display: inline-flex; will-change: transform; }
+  .track span { padding-right: 0; }
+  .line.scrolling .track span { padding-right: 48px; }
+  .line.scrolling .track {
+    animation: marquee var(--dur) linear infinite;
+    animation-delay: 1.2s;
+  }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(var(--dist)); } }
+
+  .title  { font-size: 18px; font-weight: 700; line-height: 24px; letter-spacing: -.01em; }
+  .artist { font-size: 13px; font-weight: 500; line-height: 20px; color: rgba(255,255,255,.62); margin-top: 1px; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="cover"></div>
+    <div class="info" id="info">
+      <div class="meta">
+        <div class="bars"><i></i><i></i><i></i><i></i></div>
+        <span id="state">Now playing</span><span class="dot">·</span><span id="source"></span>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const root = document.documentElement.style;
+  if (params.get("width"))  root.setProperty("--card-w", parseInt(params.get("width"), 10) + "px");
+  if (params.get("radius")) root.setProperty("--radius", parseInt(params.get("radius"), 10) + "px");
+  if (params.get("speed"))  root.setProperty("--speed", parseFloat(params.get("speed")));
+  // ?hidepaused=1 hides the card while the song is paused
+  // Works from the app (http://127.0.0.1:8787/overlay) and as an OBS "Local file".
+  const BASE = /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? "" : "http://127.0.0.1:" + (params.get("port") || 8787);
+  // Settings come live from the app; URL params (if any) still win.
+  let hidePaused = params.get("hidepaused") === "1";
+  let last = { active: false };
+
+  const card = document.getElementById("card");
+  const cover = card.querySelector(".cover");
+  const info = document.getElementById("info");
+  const stateEl = document.getElementById("state");
+  const sourceEl = document.getElementById("source");
+  const SOURCES = { youtube: "YouTube", soundcloud: "SoundCloud" };
+
+  let current = null;     // the song currently displayed
+  let textEl = null;
+
+  function speed() {
+    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--speed")) || 45;
+  }
+
+  function makeLine(cls, text) {
+    const line = document.createElement("div");
+    line.className = "line " + cls;
+    const track = document.createElement("div");
+    track.className = "track";
+    const a = document.createElement("span");
+    a.textContent = text;
+    track.appendChild(a);
+    line.appendChild(track);
+    return line;
+  }
+
+  // If the text is wider than its box, duplicate it and scroll right-to-left forever.
+  function fitLine(line) {
+    const track = line.firstChild;
+    const span = track.firstChild;
+    if (span.scrollWidth <= line.clientWidth + 1) return;
+    line.classList.add("scrolling");
+    const copy = span.cloneNode(true);
+    track.appendChild(copy);
+    const dist = span.getBoundingClientRect().width; // includes the gap padding
+    line.style.setProperty("--dist", -dist + "px");
+    line.style.setProperty("--dur", (dist / speed()).toFixed(2) + "s");
+  }
+
+  function buildText(t) {
+    const el = document.createElement("div");
+    el.className = "text in";
+    el.appendChild(makeLine("title", t.title));
+    if (t.artist) el.appendChild(makeLine("artist", t.artist));
+    return el;
+  }
+
+  function sameSong(a, b) {
+    return a && b && a.title === b.title && a.artist === b.artist && a.source === b.source;
+  }
+
+  // Skipping between songs makes the browser report "nothing / paused" for a
+  // moment. Those blips are ignored: the card only hides after 2 s of real
+  // silence, and a new song just crossfades its text in place.
+  const HIDE_DELAY = 2000;
+  let hideTimer = null, pauseTimer = null, swapTimer = null;
+
+  function swapText(t, fade) {
+    const old = textEl;
+    textEl = buildText(t);
+    if (!fade) textEl.classList.remove("in");
+    info.appendChild(textEl);
+    textEl.querySelectorAll(".line").forEach(fitLine);
+    if (fade) {
+      requestAnimationFrame(() => requestAnimationFrame(() => textEl.classList.remove("in")));
+      if (old) { old.classList.add("out"); setTimeout(() => old.remove(), 400); }
+    } else if (old) {
+      old.remove();
+    }
+    current = t;
+  }
+
+  function setPlaying(playing) {
+    card.classList.toggle("paused", !playing);
+    stateEl.textContent = playing ? "Now playing" : "Paused";
+  }
+
+  function render(t) {
+    last = t;
+    const visible = t.active && !(hidePaused && !t.playing);
+
+    if (!visible) {
+      if (!hideTimer && card.classList.contains("show")) {
+        hideTimer = setTimeout(() => {
+          hideTimer = null;
+          card.classList.remove("show");
+          current = null;
+        }, HIDE_DELAY);
+      }
+      if (t.active && !t.playing && !pauseTimer) {
+        pauseTimer = setTimeout(() => { pauseTimer = null; if (!last.playing) setPlaying(false); }, 1500);
+      }
+      return;
+    }
+
+    clearTimeout(hideTimer); hideTimer = null;
+    if (t.playing) { clearTimeout(pauseTimer); pauseTimer = null; setPlaying(true); }
+    else if (!pauseTimer) pauseTimer = setTimeout(() => { pauseTimer = null; if (!last.playing) setPlaying(false); }, 1500);
+    sourceEl.textContent = SOURCES[t.source] || "Browser";
+
+    if (!card.classList.contains("show")) {
+      // appearing: put the text in place first, then the card slides in once
+      clearTimeout(swapTimer);
+      if (!sameSong(current, t)) swapText(t, false);
+      setPlaying(t.playing);
+      card.classList.add("show");
+    } else if (!sameSong(current, t)) {
+      // song changed while shown: wait until it settles, then crossfade
+      clearTimeout(swapTimer);
+      swapTimer = setTimeout(() => { if (last.active && !sameSong(current, last)) swapText(last, true); }, 400);
+    }
+  }
+
+  function applySettings(st) {
+    if (!params.has("hidepaused")) hidePaused = !!st.hidePaused;
+    if (!params.has("speed") && st.speed) root.setProperty("--speed", st.speed);
+    cover.style.backgroundImage = 'url("' + BASE + "/cover.jpg?v=" + (st.coverV || 0) + '")';
+    if (last.active) {
+      render(last);
+      // re-measure marquees with the new speed
+      document.querySelectorAll(".line.scrolling").forEach(l => {
+        const d = -parseFloat(l.style.getPropertyValue("--dist"));
+        if (d) l.style.setProperty("--dur", (d / speed()).toFixed(2) + "s");
+      });
+    }
+  }
+
+  // The app sends a ping every 4 s. No ping = app closed: hide the card.
+  let lastBeat = 0;
+  function appGone() {
+    card.classList.remove("show");
+    current = null;
+    last = { active: false };
+  }
+  setInterval(() => { if (lastBeat && Date.now() - lastBeat > 10000) { lastBeat = 0; appGone(); } }, 2000);
+
+  function connect() {
+    const es = new EventSource(BASE + "/events");
+    const beat = () => { lastBeat = Date.now(); };
+    es.onmessage = (e) => {
+      beat();
+      try { render(JSON.parse(e.data)); } catch (err) { console.error(err); }
+    };
+    es.addEventListener("settings", (e) => { beat(); try { applySettings(JSON.parse(e.data)); } catch (_) {} });
+    es.addEventListener("ping", beat);
+    // Connection lost (app closed): hide right away. EventSource keeps retrying
+    // by itself and the card comes back as soon as the app is running again.
+    es.onerror = () => appGone();
+  }
+
+  const start = () => connect();
+  if (document.fonts && document.fonts.ready) {
+    // wait briefly for the web font so marquee widths are measured correctly
+    Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]).then(start);
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>

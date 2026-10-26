@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NowPlaying</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --line: rgba(255,255,255,.08);
+    --line-2: rgba(255,255,255,.14);
+    --text: #f4f4f4;
+    --muted: rgba(255,255,255,.55);
+    --faint: rgba(255,255,255,.32);
+    --ease: cubic-bezier(.2,.8,.2,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background:
+      radial-gradient(420px 320px at 0% 0%, rgba(255,255,255,.06), transparent 70%),
+      radial-gradient(420px 360px at 100% 100%, rgba(255,255,255,.035), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    user-select: none;
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 8px; border: 2px solid var(--bg); }
+
+  .wrap { padding: 20px 18px 22px; max-width: 520px; margin: 0 auto; }
+
+  .rise { opacity: 0; transform: translateY(8px); animation: rise .5s var(--ease) forwards; }
+  .rise:nth-child(2) { animation-delay: .05s; }
+  .rise:nth-child(3) { animation-delay: .1s; }
+  .rise:nth-child(4) { animation-delay: .15s; }
+  .rise:nth-child(5) { animation-delay: .2s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+
+  header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(145deg, #1d1d1d, #0d0d0d);
+    border: 1px solid var(--line-2);
+    display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding-bottom: 9px;
+  }
+  .logo b { width: 3px; height: 14px; background: #fff; border-radius: 2px; transform-origin: bottom; transform: scaleY(.5); }
+  body.playing .logo b { animation: eq 1.1s ease-in-out infinite; }
+  .logo b:nth-child(2) { animation-delay: -.5s !important; animation-duration: .9s !important; }
+  .logo b:nth-child(3) { animation-delay: -.2s !important; animation-duration: 1.3s !important; }
+  .logo b:nth-child(4) { animation-delay: -.7s !important; }
+  @keyframes eq { 0%,100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+
+  .card {
+    background: linear-gradient(160deg, rgba(255,255,255,.045), rgba(255,255,255,.01) 40%), var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 14px; }
+
+  /* --- now playing --- */
+  .hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .disc { position: relative; width: 148px; height: 148px; margin: 4px 0 18px; }
+  .disc .art {
+    position: absolute; inset: 0; border-radius: 14px;
+    background: #111 center / cover;
+    filter: grayscale(1);
+    box-shadow: 0 14px 34px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);
+    transition: opacity .4s;
+  }
+  .disc .ring {
+    position: absolute; inset: -7px; border-radius: 19px;
+    border: 1px solid rgba(255,255,255,.22); opacity: 0;
+  }
+  body.playing .disc .ring { animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { opacity: 0; transform: scale(.97); } 50% { opacity: 1; transform: scale(1.02); } }
+  .disc.bump .art { animation: bump .6s var(--ease); }
+  @keyframes bump { 40% { transform: scale(.92); } }
+
+  .np { position: relative; width: 100%; height: 74px; }
+  .np-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; transition: opacity .3s ease, transform .4s var(--ease); }
+  .np-text.in { opacity: 0; transform: translateY(8px); }
+  .np-text.out { opacity: 0; transform: translateY(-8px); }
+  .chip {
+    font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 6px; background: #fff; color: #000; margin-bottom: 8px;
+  }
+  .chip.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line-2); }
+  .line { overflow: hidden; white-space: nowrap; max-width: 100%; }
+  .line.scrolling { width: 100%; text-align: left; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 22px), transparent); }
+  .track { display: inline-flex; }
+  .line.scrolling .track span { padding-right: 44px; }
+  .line.scrolling .track { animation: marquee var(--dur) linear 1.2s infinite; }
+  @keyframes marquee { to { transform: translateX(var(--dist)); } }
+  .np .t { font-size: 19px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; }
+  .np .a { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+  .np .empty-a { font-size: 13px; color: var(--muted); }
+
+  .viz { display: flex; align-items: flex-end; gap: 3px; height: 22px; width: 100%; margin-top: 8px; }
+  .viz i {
+    flex: 1; height: 100%; border-radius: 2px; background: linear-gradient(#fff, rgba(255,255,255,.35));
+    transform-origin: bottom; transform: scaleY(.08); opacity: .3;
+  }
+  body.playing .viz i { opacity: 1; animation: viz var(--d) ease-in-out var(--o) infinite alternate; }
+  @keyframes viz { from { transform: scaleY(.12); } to { transform: scaleY(var(--h)); } }
+
+  /* --- overlay settings --- */
+  .set { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+  .set + .set { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 14px; }
+  .set .n { font-size: 13.5px; }
+  .set .d { font-size: 11.5px; color: var(--faint); }
+  .toggle { display: inline-flex; align-items: center; cursor: pointer; }
+  .toggle input { display: none; }
+  .toggle .sw { width: 36px; height: 20px; border-radius: 99px; background: #242424; border: 1px solid var(--line-2); position: relative; transition: background .25s; }
+  .toggle .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #888; transition: transform .25s var(--ease), background .25s; }
+  .toggle input:checked + .sw { background: #fff; }
+  .toggle input:checked + .sw::after { transform: translateX(16px); background: #000; }
+  .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 9px; padding: 2px; gap: 2px; }
+  .seg button { background: transparent; color: var(--muted); padding: 5px 10px; border-radius: 7px; font-size: 12px; }
+  .seg button:hover { background: rgba(255,255,255,.06); }
+  .seg button.on { background: #fff; color: #000; }
+
+  button {
+    font: inherit; font-size: 12.5px; font-weight: 600; color: #000; background: #fff;
+    border: 0; border-radius: 9px; padding: 9px 12px; cursor: pointer;
+    transition: transform .15s var(--ease), background .2s, color .2s;
+  }
+  button:hover { background: #e6e6e6; }
+  button:active { transform: scale(.96); }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line-2); }
+  button.ghost:hover { background: rgba(255,255,255,.06); }
+  button.done { background: #1f1f1f; color: #fff; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .btns button { padding: 11px 12px; }
+
+  /* --- Twitch (collapsible) --- */
+  details.card { padding: 0; }
+  details.card > summary {
+    list-style: none; cursor: pointer; padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--muted);
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary .s { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--faint); flex: none; }
+  details.card > summary.connected { color: var(--text); }
+  details.card > summary.connected .s { background: #fff; border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,.5); }
+  details.card > summary .chev { margin-left: auto; transition: transform .25s var(--ease); opacity: .5; }
+  details.card[open] > summary .chev { transform: rotate(180deg); }
+  details.card .body { padding: 0 18px 18px; }
+  .tw-detail { font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+  .steps { margin: 0 0 12px 18px; color: var(--muted); font-size: 12.5px; }
+  .steps li { margin-bottom: 6px; }
+  .steps b { color: var(--text); font-weight: 600; }
+  .steps a { color: #fff; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .row label { width: 86px; flex: none; font-size: 12px; color: var(--muted); }
+  input.txt {
+    flex: 1; min-width: 0; background: #0b0b0b; border: 1px solid var(--line-2); border-radius: 9px;
+    color: var(--text); font: 13px/1.2 "Segoe UI", system-ui, sans-serif; padding: 9px 11px; outline: none;
+    transition: border-color .2s; user-select: text;
+  }
+  input.txt:focus { border-color: rgba(255,255,255,.4); }
+  .vars { font-size: 11.5px; color: var(--faint); margin: -2px 0 12px 94px; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .actions .sp { flex: 1; }
+  .linkbtn { background: none; color: var(--muted); padding: 6px 4px; text-decoration: underline; }
+  .linkbtn:hover { background: none; color: #fff; }
+  [hidden] { display: none !important; }
+
+  .fine { text-align: center; font-size: 11px; color: var(--faint); margin-top: 6px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 18px; z-index: 5;
+    transform: translate(-50%, 20px); opacity: 0;
+    background: #fff; color: #000; font-size: 12.5px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    transition: opacity .25s, transform .35s var(--ease); pointer-events: none; width: max-content; max-width: calc(100% - 32px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .rise { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="rise">
+      <div class="logo"><b></b><b></b><b></b><b></b></div>
+      <h1>NowPlaying</h1>
+    </header>
+
+    <section class="card rise">
+      <div class="label" id="npLabel">Now playing</div>
+      <div class="hero">
+        <div class="disc" id="disc"><div class="ring"></div><div class="art" id="art"></div></div>
+        <div class="np" id="np"></div>
+        <div class="viz" id="viz"></div>
+      </div>
+    </section>
+
+    <section class="card rise">
+      <div class="set">
+        <div><div class="n">Hide when paused</div><div class="d">The OBS card disappears while the song is paused</div></div>
+        <label class="toggle"><input type="checkbox" id="optPaused"><span class="sw"></span></label>
+      </div>
+      <div class="set">
+        <div><div class="n">Scroll speed</div><div class="d">For long song names</div></div>
+        <span class="seg" id="optSpeed"><button data-v="30">Slow</button><button data-v="45">Normal</button><button data-v="70">Fast</button></span>
+      </div>
+    </section>
+
+    <div class="btns rise">
+      <button class="ghost" id="folder">Change picture</button>
+      <button class="ghost" id="copySong">Copy !song link</button>
+    </div>
+
+    <details class="card rise" id="twitch">
+      <summary id="twSummary"><span class="s"></span><span>Twitch !song</span><span id="twShort" style="color:var(--faint)"></span><span class="chev">▾</span></summary>
+      <div class="body">
+        <div class="tw-detail" id="twDetail"></div>
+        <div id="twSetup" hidden>
+          <ol class="steps">
+            <li>Open <a href="#" id="twDev">dev.twitch.tv/console/apps</a>, log in and click <b>Register Your Application</b>.</li>
+            <li>Name: anything. OAuth Redirect URL: <b id="twRedirect"></b> <button class="ghost" id="twCopyRedirect" style="padding:3px 8px;font-size:11px">Copy</button></li>
+            <li>Category: <b>Chat Bot</b>, Client Type: <b>Public</b>. <b>Create</b> → <b>Manage</b> → copy the <b>Client ID</b>.</li>
+            <li>Paste it below and click <b>Connect Twitch</b>. Twitch opens in your browser, check the code and click <b>Authorize</b>.</li>
+          </ol>
+          <div class="row"><label for="twClient">Client ID</label><input class="txt" id="twClient" placeholder="paste the Client ID here" spellcheck="false"></div>
+        </div>
+        <div id="twSettings" hidden>
+          <div class="row"><label>Answer</label><label class="toggle"><input type="checkbox" id="twEnabled"><span class="sw"></span></label></div>
+          <div class="row"><label for="twCommand">Command</label><input class="txt" id="twCommand" spellcheck="false"></div>
+          <div class="row"><label for="twReply">Reply</label><input class="txt" id="twReply" spellcheck="false"></div>
+          <div class="vars">{song} {title} {artist} {url} {source} {user}</div>
+          <div class="row"><label for="twNothing">Nothing plays</label><input class="txt" id="twNothing" spellcheck="false"></div>
+          <div class="row"><label for="twChannel">Channel</label><input class="txt" id="twChannel" spellcheck="false"></div>
+        </div>
+        <div class="actions">
+          <button id="twConnect">Connect Twitch</button>
+          <button class="ghost" id="twSave" hidden>Save</button>
+          <span class="sp"></span>
+          <button class="linkbtn" id="twLogout" hidden>Disconnect</button>
+        </div>
+      </div>
+    </details>
+
+    <p class="fine">Closing this window keeps NowPlaying running in the tray (next to the clock).<br>Right-click the tray icon → Quit to stop it.</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const ORIGIN = location.origin;
+  const SOURCES = { youtube: "YouTube", soundcloud: "SoundCloud" };
+  const H = { "Content-Type": "application/json", "X-NowPlaying": "1" };
+
+  // ---------- visualizer: 22 bars, random rhythm, pure CSS after setup (runs only while playing)
+  const viz = $("viz");
+  for (let i = 0; i < 22; i++) {
+    const b = document.createElement("i");
+    const mid = 1 - Math.abs(i - 10.5) / 13;
+    b.style.setProperty("--h", (0.35 + Math.random() * 0.65 * mid + 0.15).toFixed(2));
+    b.style.setProperty("--d", (0.45 + Math.random() * 0.6).toFixed(2) + "s");
+    b.style.setProperty("--o", (-Math.random()).toFixed(2) + "s");
+    viz.appendChild(b);
+  }
+
+  // ---------- toast + clipboard
+  let toastT;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(() => t.classList.remove("show"), 1800);
+  }
+  async function copy(text, btn) {
+    try { await navigator.clipboard.writeText(text); }
+    catch (_) {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+    }
+    if (btn) {
+      const old = btn.textContent;
+      btn.textContent = "Copied ✓"; btn.classList.add("done");
+      setTimeout(() => { btn.textContent = old; btn.classList.remove("done"); }, 1300);
+    }
+  }
+  function openExt(u) { if (window.openExternal) window.openExternal(u); else window.open(u); }
+
+  // ---------- overlay settings (saved in the app, pushed live to OBS)
+  let settings = { hidePaused: false, speed: 45, coverV: 0 };
+  function renderSettings() {
+    $("optPaused").checked = settings.hidePaused;
+    $("optSpeed").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.v === settings.speed));
+    $("art").style.backgroundImage = 'url("/cover.jpg?v=' + settings.coverV + '")';
+  }
+  async function saveSettings() {
+    renderSettings();
+    try {
+      const r = await fetch("/api/settings", { method: "POST", headers: H, body: JSON.stringify(settings) });
+      settings = await r.json(); renderSettings();
+    } catch (_) {}
+  }
+  $("optPaused").addEventListener("change", (e) => { settings.hidePaused = e.target.checked; saveSettings(); });
+  $("optSpeed").addEventListener("click", (e) => {
+    const v = e.target.dataset && e.target.dataset.v;
+    if (v) { settings.speed = +v; saveSettings(); }
+  });
+  $("copySong").addEventListener("click", (e) => copy(ORIGIN + "/api/now-playing?format=text", e.currentTarget));
+  $("folder").addEventListener("click", () => {
+    if (window.openFolder) { window.openFolder(); toast("Replace cover.jpg with your picture"); }
+    else toast("Put a cover.jpg next to NowPlaying.exe");
+  });
+
+  // ---------- now playing (instant, via server push)
+  let shown = null, textEl = null;
+  function fitLine(line) {
+    const track = line.firstChild, span = track.firstChild;
+    if (span.scrollWidth <= line.clientWidth + 1) return;
+    line.classList.add("scrolling");
+    track.appendChild(span.cloneNode(true));
+    const dist = span.getBoundingClientRect().width;
+    line.style.setProperty("--dist", -dist + "px");
+    line.style.setProperty("--dur", (dist / 40).toFixed(2) + "s");
+  }
+  function lineEl(cls, text) {
+    const l = document.createElement("div"); l.className = "line " + cls;
+    const tr = document.createElement("div"); tr.className = "track";
+    const s = document.createElement("span"); s.textContent = text;
+    tr.appendChild(s); l.appendChild(tr); return l;
+  }
+  function key(t) { return t.active ? [t.title, t.artist, t.source].join("|") : ""; }
+
+  function renderTrack(t) {
+    document.body.classList.toggle("playing", !!(t.active && t.playing));
+    $("npLabel").textContent = !t.active ? "Waiting for music" : t.playing ? "Now playing" : "Paused";
+    if (shown !== null && key(t) === shown) return;
+    const first = shown === null;
+    shown = key(t);
+
+    const el = document.createElement("div");
+    el.className = "np-text in";
+    const chip = document.createElement("span");
+    if (t.active) {
+      chip.className = "chip"; chip.textContent = SOURCES[t.source] || "Browser";
+      el.appendChild(chip);
+      el.appendChild(lineEl("t", t.title));
+      if (t.artist) el.appendChild(lineEl("a", t.artist));
+    } else {
+      chip.className = "chip ghost"; chip.textContent = "Idle";
+      const b = document.createElement("div"); b.className = "empty-a";
+      b.textContent = "Play a song on YouTube or SoundCloud.";
+      el.append(chip, b);
+    }
+    const old = textEl;
+    textEl = el;
+    $("np").appendChild(el);
+    el.querySelectorAll(".line").forEach(fitLine);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.classList.remove("in");
+      if (old) { old.classList.add("out"); setTimeout(() => old.remove(), 450); }
+    }));
+    if (!first && t.active) {
+      const d = $("disc"); d.classList.remove("bump"); void d.offsetWidth; d.classList.add("bump");
+    }
+  }
+
+  const es = new EventSource("/events?c=app");
+  es.onmessage = (e) => { try { renderTrack(JSON.parse(e.data)); } catch (_) {} };
+  es.addEventListener("settings", (e) => { try { settings = JSON.parse(e.data); renderSettings(); } catch (_) {} });
+
+  // ---------- Twitch !song
+  let tw = null;
+
+  function renderTwitch(t, fillFields) {
+    if (tw && tw.hasToken !== t.hasToken) fillFields = true;
+    tw = t;
+    $("twSummary").className = t.state === "connected" ? "connected" : "";
+    $("twDetail").textContent = t.detail || "";
+    $("twShort").textContent = t.state === "connected" ? "· on" : t.hasToken ? "· " + (t.state === "off" ? "off" : "not connected") : "· set up";
+    $("twRedirect").textContent = t.redirect;
+    $("twSetup").hidden = t.hasToken;
+    $("twSettings").hidden = !t.hasToken;
+    $("twSave").hidden = !t.hasToken;
+    $("twLogout").hidden = !t.hasToken;
+    $("twConnect").textContent = t.hasToken ? "Reconnect" : "Connect Twitch";
+    $("twConnect").className = t.hasToken ? "ghost" : "";
+    if (fillFields) {
+      $("twClient").value = t.clientId || "";
+      $("twEnabled").checked = t.enabled;
+      $("twCommand").value = t.command;
+      $("twReply").value = t.reply;
+      $("twNothing").value = t.nothing;
+      $("twChannel").value = t.channel;
+      $("twChannel").placeholder = t.login ? t.login + " (your channel)" : "your channel";
+    }
+  }
+  function twFields() {
+    return {
+      enabled: $("twEnabled").checked, clientId: $("twClient").value.trim(),
+      command: $("twCommand").value.trim(), reply: $("twReply").value,
+      nothing: $("twNothing").value, channel: $("twChannel").value.trim(),
+      cooldown: (tw && tw.cooldown) || 5,
+    };
+  }
+  async function twSave(extra) {
+    const r = await fetch("/api/twitch", { method: "POST", headers: H, body: JSON.stringify(Object.assign(twFields(), extra || {})) });
+    if (!r.ok) throw new Error(await r.text());
+    renderTwitch(await r.json(), true);
+  }
+  async function twLoad(fill) {
+    try { renderTwitch(await (await fetch("/api/twitch", { cache: "no-store" })).json(), fill); } catch (_) {}
+  }
+  $("twDev").addEventListener("click", (e) => { e.preventDefault(); openExt("https://dev.twitch.tv/console/apps"); });
+  $("twCopyRedirect").addEventListener("click", (e) => copy(tw.redirect, e.currentTarget));
+  $("twConnect").addEventListener("click", async () => {
+    try {
+      if (!tw.hasToken && !$("twClient").value.trim()) { toast("Paste the Client ID first"); $("twClient").focus(); return; }
+      await twSave(tw.hasToken ? {} : { enabled: true });
+      if (!tw.clientId) { toast("Paste the Client ID first"); return; }
+      const r = await fetch("/api/twitch/login", { method: "POST", headers: H });
+      if (!r.ok) throw new Error(await r.text());
+      const d = await r.json();
+      openExt(d.url);
+      toast("Code " + d.code + " · click Authorize in the browser");
+      twLoad(false);
+    } catch (e) { toast(e.message || "Something went wrong"); }
+  });
+  $("twSave").addEventListener("click", async () => {
+    try { await twSave(); toast("Saved"); } catch (e) { toast(e.message || "Could not save"); }
+  });
+  $("twEnabled").addEventListener("change", () => twSave().catch(() => {}));
+  $("twLogout").addEventListener("click", () => twSave({ logout: true, enabled: false }).catch(() => {}));
+  twLoad(true);
+
+  setInterval(() => { if (!document.hidden) twLoad(false); }, 4000);
+})();
+</script>
+</body>
+</html>

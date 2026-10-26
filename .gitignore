@@ -1,0 +1,10 @@
+# build output
+*.exe
+dist/
+*.xpi
+*.zip
+
+# created next to the exe at runtime
+nowplaying.txt
+OBS-overlay.html
+config.json
